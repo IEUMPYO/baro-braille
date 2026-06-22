@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:fresh": "sh -c 'pids=$(lsof -tiTCP:3000 -sTCP:LISTEN); if [ -n \"$pids\" ]; then kill $pids; sleep 1; fi; next dev'",
+    "local:fresh": "npm run build && npm run dev:fresh",
     "build": "next build",
     "start": "next start"
   },
