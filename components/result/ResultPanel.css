@@ -1,0 +1,133 @@
+.complete-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 30px 18px 20px;
+}
+
+.complete-card.waiting {
+  color: #59667a;
+}
+
+.complete-message {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  padding: 0 8px;
+}
+
+.complete-message h2 {
+  font-size: 25px;
+  line-height: 1.2;
+  margin: 0 0 6px;
+}
+
+.complete-message p {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.divider {
+  background: var(--line);
+  height: 1px;
+  margin: 28px 8px 22px;
+}
+
+.complete-card h3 {
+  font-size: 18px;
+  margin: 0 8px 18px;
+}
+
+.file-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.file-card {
+  align-items: center;
+  border: 0;
+  border-radius: 10px;
+  color: #273244;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 144px;
+  padding: 20px 8px 16px;
+}
+
+.file-card:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.28);
+  opacity: 0.58;
+}
+
+.file-card strong {
+  font-size: 19px;
+  line-height: 1.1;
+}
+
+.file-card span {
+  color: #7b8798;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.file-card.mint {
+  background: #ecfbf3;
+  color: #17a36b;
+}
+
+.file-card.violet {
+  background: #f0edff;
+  color: var(--violet);
+}
+
+.file-card.rose {
+  background: #fff0f3;
+  color: var(--rose);
+}
+
+.download-button {
+  align-items: center;
+  background: linear-gradient(180deg, #0875ee, #025bd1);
+  border: 0;
+  border-radius: 9px;
+  box-shadow: 0 12px 22px rgba(5, 98, 220, 0.22);
+  color: #ffffff;
+  display: flex;
+  font-size: 22px;
+  font-weight: 800;
+  gap: 10px;
+  height: 61px;
+  justify-content: center;
+  margin-top: 22px;
+  width: 100%;
+}
+
+.download-button:hover,
+.download-button:focus-visible {
+  filter: brightness(1.04);
+  outline: none;
+}
+
+.download-button:disabled {
+  background: #c8d1df;
+  box-shadow: none;
+  cursor: not-allowed;
+  filter: none;
+}
+
+@media (max-width: 640px) {
+  .file-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .complete-message {
+    align-items: flex-start;
+  }
+}
