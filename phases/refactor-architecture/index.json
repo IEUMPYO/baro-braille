@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "preview-component",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-07-02T14:29:44+0900",
+      "completed_at": "2026-07-02T14:33:00+0900",
+      "summary": "components/preview/ 생성: PreviewPanel.jsx (MathPreview 내부 컴포넌트 포함), PreviewPanel.css"
     },
     {
       "step": 3,
