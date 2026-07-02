@@ -2,7 +2,8 @@
   "phases": [
     {
       "dir": "refactor-architecture",
-      "status": "pending"
+      "status": "completed",
+      "completed_at": "2026-07-02T14:42:49+0900"
     }
   ]
 }
