@@ -47,7 +47,7 @@
       "name": "integration",
       "status": "completed",
       "started_at": "2026-07-02T14:37:01+0900",
-      "completed_at": "2026-07-02T14:45:00+0900",
+      "completed_at": "2026-07-02T14:42:49+0900",
       "summary": "app/page.jsx 통합 완료, Feature-based 아키텍처 적용됨, jsconfig.json 추가"
     }
   ],
