@@ -1,0 +1,40 @@
+{
+  "project": "바로점자",
+  "phase": "refactor-architecture",
+  "steps": [
+    {
+      "step": 0,
+      "name": "lib-layer",
+      "status": "completed",
+      "started_at": "2026-07-02T14:26:08+0900",
+      "completed_at": "2026-07-02T14:30:00+0900",
+      "summary": "lib/ 디렉토리 생성: mockData.js, services.js, utils.js"
+    },
+    {
+      "step": 1,
+      "name": "upload-component",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "preview-component",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "conversion-component",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "result-component",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "integration",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-07-02T14:26:08+0900"
+}
