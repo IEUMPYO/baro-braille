@@ -26,7 +26,7 @@ const navItems = [
   { href: "/upload", label: "업로드/변환", icon: Upload },
   { href: "/history", label: "변환 내역", icon: FileText },
   { href: "/review", label: "검수 작업", icon: CheckSquare },
-  { href: "/delivery", label: "제공 내역", icon: Archive },
+  { href: "/provision", label: "제공 내역", icon: Archive },
   { href: "/settings", label: "설정", icon: Settings },
 ];
 

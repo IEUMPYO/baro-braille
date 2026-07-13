@@ -1,8 +1,12 @@
-export default function Home() {
+"use client";
+
+export default function DashboardPage() {
   return (
-    <div style={{ padding: "40px" }}>
-      <h1>대시보드 (작업 중)</h1>
-      <p>Step 1에서 페이지 구조를 완성합니다.</p>
+    <div className="page-container">
+      <h1 className="page-title">대시보드</h1>
+      <p className="page-description">
+        통계 및 최근 활동을 표시합니다. (Step 4에서 구현)
+      </p>
     </div>
   );
 }
