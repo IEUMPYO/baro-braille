@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { ToastProvider } from "./ToastContext";
 import { mockProfile } from "@/lib/mockData";
 
 function Modal({ type, onClose }) {
@@ -83,15 +84,17 @@ export default function LayoutClient({ children }) {
   }, [openModal]);
 
   return (
-    <div className="app-container">
-      <Sidebar />
-      <div className="main-wrapper">
-        <Header onOpenModal={setOpenModal} />
-        <main className="main-content">{children}</main>
+    <ToastProvider>
+      <div className="app-container">
+        <Sidebar />
+        <div className="main-wrapper">
+          <Header onOpenModal={setOpenModal} />
+          <main className="main-content">{children}</main>
+        </div>
+        {openModal ? (
+          <Modal type={openModal} onClose={() => setOpenModal(null)} />
+        ) : null}
       </div>
-      {openModal ? (
-        <Modal type={openModal} onClose={() => setOpenModal(null)} />
-      ) : null}
-    </div>
+    </ToastProvider>
   );
 }

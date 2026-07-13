@@ -21,7 +21,10 @@
     {
       "step": 2,
       "name": "upload-basic",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-07-13T17:07:49+0900",
+      "completed_at": "2026-07-13T17:20:00+0900",
+      "summary": "업로드 기본 구조 완성, StepIndicator, FileUploadBox, FileList 컴포넌트 생성, Toast 전역화"
     },
     {
       "step": 3,
