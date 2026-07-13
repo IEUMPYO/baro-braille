@@ -15,7 +15,7 @@
       "name": "navigation-routing",
       "status": "completed",
       "started_at": "2026-07-13T17:05:18+0900",
-      "completed_at": "2026-07-13T17:10:00+0900",
+      "completed_at": "2026-07-13T17:07:49+0900",
       "summary": "6개 페이지 라우팅 구조 완성, page.jsx 파일 생성, Sidebar 네비게이션 연결, 페이지 스타일 추가"
     },
     {
