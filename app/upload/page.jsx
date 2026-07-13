@@ -7,9 +7,13 @@ import FileList from "@/components/upload/FileList";
 import ProblemPreview from "@/components/upload/ProblemPreview";
 import FilterOptions from "@/components/upload/FilterOptions";
 import GraphViewer from "@/components/upload/GraphViewer";
+import OriginalTextPanel from "@/components/upload/OriginalTextPanel";
+import BrailleInputPanel from "@/components/upload/BrailleInputPanel";
+import ProblemNavigation from "@/components/upload/ProblemNavigation";
 import { useToast } from "@/components/layout/ToastContext";
 import { convertToBraille } from "@/lib/services";
-import { FileText } from "lucide-react";
+import { mockProblems } from "@/lib/mockData";
+import { FileText, CheckSquare, Check } from "lucide-react";
 
 export default function UploadPage() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -18,6 +22,9 @@ export default function UploadPage() {
   const [isConverting, setIsConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [recognizedProblem, setRecognizedProblem] = useState(null);
+  const [resultFiles, setResultFiles] = useState([]);
+  const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
+  const [brailleText, setBrailleText] = useState("");
   const { showToast } = useToast();
 
   function handleFileUpload(file) {
@@ -64,14 +71,41 @@ export default function UploadPage() {
         // Step 4에서 사용
       },
       onComplete: (files) => {
+        setResultFiles(files);
         setIsConverting(false);
         setCurrentStep(3);
+        // 첫 번째 문제의 점자 텍스트 표시
+        if (mockProblems[0]?.braille) {
+          setBrailleText(mockProblems[0].braille);
+        }
         showToast("변환이 완료되었습니다.");
-        // Step 4에서 결과 파일 저장
       },
     });
 
     // cleanup은 useEffect에서 관리 필요
+  }
+
+  function handleTempSave() {
+    // Mock: 토스트만 표시
+    showToast("임시 저장되었습니다.");
+  }
+
+  function handleComplete() {
+    // 선택된 파일의 상태를 completed로 변경
+    setUploadedFiles((files) =>
+      files.map((f) =>
+        f.id === selectedFileId ? { ...f, status: "completed" } : f,
+      ),
+    );
+    showToast("변환이 완료되었습니다.");
+  }
+
+  function handleProblemNavigate(index) {
+    setCurrentProblemIndex(index);
+    // 문제 전환 시 점자 텍스트 업데이트
+    if (mockProblems[index]?.braille) {
+      setBrailleText(mockProblems[index].braille);
+    }
   }
 
   return (
@@ -136,9 +170,43 @@ export default function UploadPage() {
           )}
         </section>
 
-        <section className="workflow-section">
+        <section className="workflow-section review-section">
           <h2>3. 검수 화면</h2>
-          <p className="placeholder-text">Step 4에서 구현합니다.</p>
+
+          {currentStep < 3 ? (
+            <div className="empty-state">
+              <CheckSquare size={48} strokeWidth={1.5} />
+              <p>변환이 완료되면 검수 화면이 표시됩니다.</p>
+            </div>
+          ) : (
+            <>
+              <div className="review-panels">
+                <OriginalTextPanel
+                  problem={mockProblems[currentProblemIndex]}
+                />
+                <BrailleInputPanel
+                  brailleText={brailleText}
+                  onTextChange={setBrailleText}
+                />
+              </div>
+
+              <ProblemNavigation
+                currentIndex={currentProblemIndex}
+                total={mockProblems.length}
+                onNavigate={handleProblemNavigate}
+              />
+
+              <div className="review-actions">
+                <button className="btn-secondary" onClick={handleTempSave}>
+                  임시 저장
+                </button>
+                <button className="btn-primary" onClick={handleComplete}>
+                  <Check size={18} />
+                  변환 완료
+                </button>
+              </div>
+            </>
+          )}
         </section>
       </div>
     </div>
