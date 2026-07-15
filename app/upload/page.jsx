@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import StepIndicator from "@/components/upload/StepIndicator";
-import FileUploadBox from "@/components/upload/FileUploadBox";
-import FileList from "@/components/upload/FileList";
-import ProblemPreview from "@/components/upload/ProblemPreview";
-import FilterOptions from "@/components/upload/FilterOptions";
-import GraphViewer from "@/components/upload/GraphViewer";
-import OriginalTextPanel from "@/components/upload/OriginalTextPanel";
-import BrailleInputPanel from "@/components/upload/BrailleInputPanel";
-import ProblemNavigation from "@/components/upload/ProblemNavigation";
+import StepIndicator from "@/features/upload/StepIndicator";
+import FileUploadBox from "@/features/upload/FileUploadBox";
+import FileList from "@/features/upload/FileList";
+import ProblemPreview from "@/features/upload/ProblemPreview";
+import FilterOptions from "@/features/upload/FilterOptions";
+import GraphViewer from "@/features/upload/GraphViewer";
+import OriginalTextPanel from "@/features/upload/OriginalTextPanel";
+import BrailleInputPanel from "@/features/upload/BrailleInputPanel";
+import ProblemNavigation from "@/features/upload/ProblemNavigation";
 import { useToast } from "@/components/layout/ToastContext";
 import { convertToBraille } from "@/lib/services";
 import { mockProblems } from "@/lib/mockData";

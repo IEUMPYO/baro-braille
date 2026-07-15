@@ -13,7 +13,10 @@
     {
       "step": 1,
       "name": "migrate-upload",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-07-15T13:01:58+0900",
+      "completed_at": "2026-07-15T13:02:30+0900",
+      "summary": "upload 도메인 features/로 이동 완료, import 경로 업데이트 완료"
     },
     {
       "step": 2,
