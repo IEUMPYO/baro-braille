@@ -1,0 +1,40 @@
+{
+  "project": "바로점자",
+  "phase": "refactor-features",
+  "steps": [
+    {
+      "step": 0,
+      "name": "directory-setup",
+      "status": "completed",
+      "started_at": "2026-07-15T13:01:03+0900",
+      "completed_at": "2026-07-15T13:01:15+0900",
+      "summary": "features/ 및 4개 도메인 디렉토리 생성 완료"
+    },
+    {
+      "step": 1,
+      "name": "migrate-upload",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "migrate-preview",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "migrate-conversion-result",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "cleanup-verify",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "update-docs",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-07-15T13:01:03+0900"
+}
