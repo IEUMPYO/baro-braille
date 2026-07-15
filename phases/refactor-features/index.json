@@ -31,7 +31,7 @@
       "name": "migrate-conversion-result",
       "status": "completed",
       "started_at": "2026-07-15T13:06:43+0900",
-      "completed_at": "2026-07-15T13:07:30+0900",
+      "completed_at": "2026-07-15T13:08:34+0900",
       "summary": "conversion, result 도메인 features/로 이동 완료, import 경로 업데이트 완료"
     },
     {
