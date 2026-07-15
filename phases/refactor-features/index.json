@@ -23,7 +23,7 @@
       "name": "migrate-preview",
       "status": "completed",
       "started_at": "2026-07-15T13:04:14+0900",
-      "completed_at": "2026-07-15T13:05:45+0900",
+      "completed_at": "2026-07-15T13:06:43+0900",
       "summary": "preview 도메인 features/로 이동 완료, import 경로 업데이트 완료"
     },
     {
