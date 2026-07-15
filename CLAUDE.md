@@ -59,6 +59,19 @@ npm run dev          # 개발
 npm run build        # 빌드
 ```
 
+## Harness 워크플로우
+
+**Task 완료 후 정리**
+
+- PR merge 완료 시 `phases/{task-name}/` 디렉토리 즉시 삭제
+- phases/ 디렉토리는 작업 중에만 존재, 완료 후 정리 필수
+- git에 커밋하지 않음 (.gitignore 포함)
+
+**규칙**
+
+- Task 완료 → PR merge → phases/ 삭제 순서 엄수
+- 매번 사용자가 요청하지 않아도 자동으로 정리
+
 ## 현재 없는 것
 
 - TypeScript
