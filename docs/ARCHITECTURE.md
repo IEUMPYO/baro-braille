@@ -15,7 +15,7 @@ baro-braille/
 │   ├── layout.jsx           # 루트 레이아웃
 │   ├── page.jsx             # 메인 페이지 (오케스트레이션)
 │   └── globals.css          # 전역 스타일
-├── components/              # 도메인별 컴포넌트
+├── features/                # 도메인별 완전 분리
 │   ├── upload/
 │   │   └── UploadPanel.jsx
 │   ├── preview/
@@ -24,6 +24,8 @@ baro-braille/
 │   │   └── ConversionSteps.jsx
 │   └── result/
 │       └── ResultPanel.jsx
+├── components/
+│   └── layout/              # 공통 레이아웃
 ├── lib/
 │   ├── mockData.js          # Mock data
 │   └── services.js          # 비즈니스 로직 (나중에 API 전환)
@@ -68,7 +70,8 @@ baro-braille/
 ## 현재 구조 (MVP)
 
 - **단일 페이지 애플리케이션**: `app/page.jsx`에서 오케스트레이션만
-- **도메인별 컴포넌트**: `components/` 폴더에 기능별로 분리
+- **도메인별 컴포넌트**: `features/` 폴더에 기능별로 완전 분리
+- **공통 레이아웃**: `components/layout/` 폴더에 공통 UI 요소
 - **Mock data**: `lib/mockData.js`에 중앙 관리
 - **Client Component**: 전체 페이지가 "use client"로 동작
 - **정적 빌드**: `output: 'export'`로 GitHub Pages 배포
@@ -94,7 +97,7 @@ export async function convertToBraille(file) {
 **사용**
 
 ```javascript
-// components/upload/UploadPanel.jsx
+// features/upload/UploadPanel.jsx
 import { convertToBraille } from "@/lib/services";
 
 async function handleUpload(file) {

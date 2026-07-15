@@ -154,3 +154,40 @@ components/
 - ✓ 빠른 개발
 - ✕ API 전환 시 리팩토링 필요
 - → MVP 목표에 부합
+
+---
+
+### ADR-008: Feature-based 아키텍처 완전 적용
+
+**결정**: components/ → features/ 전환 완료
+
+**이유**:
+
+- ADR-005에서 채택한 Feature-based 아키텍처를 완전히 적용
+- 도메인별 코드 응집도를 더욱 명확히 향상
+- 각 feature가 독립적으로 관리 가능
+- 백엔드 연동 시 각 feature에 service.js 추가 용이
+
+**구조**:
+
+```
+features/
+├── upload/
+├── preview/
+├── conversion/
+└── result/
+```
+
+**트레이드오프**:
+
+- ✓ 도메인 경계가 더 명확해짐
+- ✓ 확장성 향상 (각 feature에 hooks, service 추가 가능)
+- ✓ import 경로가 더 명확 (@/features/upload)
+- ✕ 디렉토리 깊이 증가
+- → 현재 프로젝트 규모에서 적합한 선택
+
+**전환 전략**:
+
+- components/layout은 공통 UI이므로 components/에 유지
+- lib/는 공통 로직이므로 그대로 유지
+- Mock 데이터는 lib/mockData.js에 유지 (나중에 API 전환 시 분산 고려)

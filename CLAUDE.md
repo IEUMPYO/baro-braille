@@ -13,22 +13,26 @@
 ### Feature-based (도메인 기반)
 
 ```
-components/
+features/
 ├── upload/          # 파일 업로드 도메인
 ├── preview/         # 문제 미리보기 도메인
 ├── conversion/      # 점역 변환 도메인
 └── result/          # 결과 다운로드 도메인
 
+components/
+└── layout/          # 공통 레이아웃
+
 lib/
 ├── mockData.js      # Mock data
-└── services.js      # 비즈니스 로직
+├── services.js      # 비즈니스 로직
+└── utils.js         # 유틸리티
 ```
 
 ### 확장 경로
 
 - Mock → API 전환: lib/services.js → features/*/service.js
+- features/ 내 hooks/ 추가 (필요시)
 - GitHub Pages → 클라우드: output: 'export' 제거
-- components/ → features/ (CSS, 훅 포함)
 
 ### 일반
 
