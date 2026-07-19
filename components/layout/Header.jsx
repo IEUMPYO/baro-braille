@@ -1,56 +1,49 @@
 "use client";
 
-import { HelpCircle, Bell, UserRound } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-export default function Header({ onOpenModal }) {
-  function handleNotificationClick() {
-    console.log("알림 클릭 (Mock)");
-  }
+const steps = [
+  { href: "/", label: "문서 업로드" },
+  { href: "/proofread", label: "교열" },
+  { href: "/braille", label: "점역" },
+  { href: "/output", label: "출력" },
+];
+
+export default function Header() {
+  const pathname = usePathname();
+  const currentIndex = steps.findIndex((step) => step.href === pathname);
 
   return (
-    <header className="header">
-      <div className="header-left">
-        <div className="braille-dots braille-dots-small" aria-hidden="true">
-          {Array.from({ length: 9 }).map((_, index) => (
-            <span key={index} />
-          ))}
-        </div>
-        <div>
-          <div className="header-title">바로점자</div>
-          <div className="header-subtitle">학습자료 점근성 변환 서비스</div>
-        </div>
-      </div>
+    <header className="app">
+      <Link className="logo" href="/" aria-label="바로점자 홈으로">
+        <span className="dots" aria-hidden="true">
+          ⠃⠁⠗⠕
+        </span>{" "}
+        바로점자
+      </Link>
+      <nav className="steps" aria-label="진행 단계">
+        {steps.map((step, index) => {
+          const isCurrent = index === currentIndex;
+          const isDone = currentIndex > -1 && index < currentIndex;
+          const className = `step${isCurrent ? " current" : ""}${
+            isDone ? " done" : ""
+          }`;
 
-      <div className="header-right">
-        <button
-          type="button"
-          className="header-icon-btn"
-          onClick={() => onOpenModal && onOpenModal("guide")}
-          aria-label="도움말"
-        >
-          <HelpCircle size={22} strokeWidth={1.8} />
-        </button>
-
-        <button
-          type="button"
-          className="header-icon-btn"
-          onClick={handleNotificationClick}
-          aria-label="알림"
-        >
-          <Bell size={22} strokeWidth={1.8} />
-          <span className="notification-badge">3</span>
-        </button>
-
-        <button
-          type="button"
-          className="profile-btn"
-          onClick={() => onOpenModal && onOpenModal("profile")}
-          aria-label="프로필"
-        >
-          <UserRound size={20} strokeWidth={1.8} />
-          <span>홍길동 선생님</span>
-        </button>
-      </div>
+          return (
+            <span key={step.href} style={{ display: "contents" }}>
+              {index > 0 && <span className="step-arrow">›</span>}
+              <Link
+                className={className}
+                href={step.href}
+                aria-current={isCurrent ? "step" : undefined}
+              >
+                <span className="num">{index + 1}</span> {step.label}
+              </Link>
+            </span>
+          );
+        })}
+      </nav>
     </header>
   );
 }
