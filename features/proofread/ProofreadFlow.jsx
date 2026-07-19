@@ -12,6 +12,7 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { useWorkflow } from "@/lib/store";
 import { mockDoc, PDF_RATIO } from "@/lib/mockData";
+import LatexEditor from "./LatexEditor";
 
 const LABEL = {
   problem: "문제",
@@ -140,6 +141,7 @@ export default function ProofreadFlow() {
   const [curPage, setCurPage] = useState(1);
   const [hovered, setHovered] = useState(null); // hover 중 문제 no
   const [focused, setFocused] = useState(null); // focus 중 문제 no
+  const [mathCtx, setMathCtx] = useState(null); // 편집 중 수식 { problem, bi, ii, el, origLatex }
   const hlProblem = hovered ?? focused; // 목업: hover 우선, 없으면 focus 유지
 
   const pdfPageRef = useRef(null);
@@ -215,8 +217,37 @@ export default function ProofreadFlow() {
     setProofread(problem.no, blocks);
   }
 
-  // step 4에서 수식 편집기 모달을 여는 훅 지점. 이 step에서는 아무 동작도 하지 않는다.
-  function handleMathClick() {}
+  // 수식 블록 클릭 → 편집기 모달. 클릭한 .math DOM(el)과 위치를 함께 붙잡는다.
+  function openMath(problem, bi, ii, latex, el) {
+    setMathCtx({ problem, bi, ii, el, origLatex: latex });
+  }
+
+  // 편집 중 실시간 미리보기: 클릭한 본문 수식 블록을 KaTeX로 즉시 다시 렌더.
+  function liveMath(latex) {
+    const el = mathCtx?.el;
+    if (!el) return;
+    katex.render(latex, el, { throwOnError: false, displayMode: false });
+    el.dataset.latex = latex;
+  }
+
+  // 적용: 최종 LaTeX를 본문 수식에 반영하고, 해당 줄을 다시 직렬화해 store에 저장.
+  function applyMath(latex) {
+    const { problem, bi, ii, el } = mathCtx;
+    liveMath(latex);
+    const line = el?.closest(".proof-line");
+    if (line) handleEdit(problem, bi, ii, serializeLine(line));
+    setMathCtx(null);
+  }
+
+  // 취소·바깥 클릭·Esc: 원래 수식으로 복구.
+  function cancelMath() {
+    const { el, origLatex } = mathCtx;
+    if (el) {
+      katex.render(origLatex, el, { throwOnError: false, displayMode: false });
+      el.dataset.latex = origLatex;
+    }
+    setMathCtx(null);
+  }
 
   return (
     <div>
@@ -312,7 +343,9 @@ export default function ProofreadFlow() {
                         onEdit={(text) =>
                           handleEdit(problem, line.bi, line.ii, text)
                         }
-                        onMathClick={handleMathClick}
+                        onMathClick={(latex, el) =>
+                          openMath(problem, line.bi, line.ii, latex, el)
+                        }
                       />
                     </Fragment>
                   ))}
@@ -322,6 +355,15 @@ export default function ProofreadFlow() {
           </div>
         </div>
       </div>
+
+      {mathCtx && (
+        <LatexEditor
+          initialLatex={mathCtx.origLatex}
+          onLive={liveMath}
+          onApply={applyMath}
+          onCancel={cancelMath}
+        />
+      )}
     </div>
   );
 }

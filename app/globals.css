@@ -452,6 +452,155 @@ p.page-sub {
   border-color: var(--sky);
 }
 
+/* 수식 편집기 모달 (docs/ui-mockup-v1.html #latexModal) */
+.slot {
+  width: 36px;
+  padding: 2px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  text-align: center;
+}
+.slot:focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 1px;
+}
+.slot-sm {
+  width: 26px;
+  font-size: 12px;
+  padding: 1px 3px;
+}
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 2px;
+  font-size: 0.82em;
+  line-height: 1.25;
+}
+.frac .top {
+  border-bottom: 1px solid currentColor;
+  padding: 0 4px;
+}
+.lim {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1.1;
+  margin-right: 4px;
+}
+.lim .under {
+  font-size: 0.62em;
+  font-style: normal;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 14, 18, 0.45);
+}
+.modal-backdrop.open {
+  display: flex;
+}
+.modal {
+  width: min(560px, calc(100vw - 40px));
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 22px 24px;
+}
+.modal h2 {
+  margin: 0 0 2px;
+  font-size: 16px;
+}
+.tpl-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.tpl-tab {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--sub);
+}
+.tpl-tab.active {
+  border-color: var(--sky);
+  color: var(--ink);
+  font-weight: 600;
+}
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.tpl {
+  padding: 9px 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  font-family: var(--serif);
+  font-size: 15px;
+}
+.tpl:hover {
+  border-color: var(--sky);
+}
+.tpl .cap {
+  display: block;
+  font-family: var(--sans);
+  font-size: 10px;
+  color: var(--faint);
+  margin-top: 3px;
+}
+.latex-preview {
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--serif);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 52px;
+}
+.latex-src {
+  width: 100%;
+  resize: vertical;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+.latex-src:focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 1px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
