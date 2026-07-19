@@ -2,16 +2,23 @@
 """
 Harness Step Executor — phase 내 step을 순차 실행하고 자가 교정한다.
 
+각 step은 /ship 워크플로우를 무인으로 수행한다:
+    main 최신화 → 이슈 생성 → 브랜치(<type>/#N-slug) → (Claude 코드 작업)
+    → 커밋(<type>(#N/scope): summary) → push → PR(Closes #N) → merge → main pull
+
+Claude 세션은 코드 구현 + AC 실행 + index.json status/summary 갱신만 한다(커밋하지 않음).
+git·gh 오케스트레이션은 이 실행기가 전담한다.
+
 Usage:
-    python3 scripts/execute.py <phase-dir> [--push]
+    python3 scripts/execute.py <phase-dir>
 """
 
 import argparse
 import contextlib
 import json
-import os
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import types
@@ -20,6 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
+MAIN_BRANCH = "main"
 
 
 @contextlib.contextmanager
@@ -51,20 +59,28 @@ def progress_indicator(label: str):
 
 
 class StepExecutor:
-    """Phase 디렉토리 안의 step들을 순차 실행하는 하네스."""
+    """Phase 디렉토리 안의 step들을 /ship 워크플로우로 순차 실행하는 하네스."""
 
     MAX_RETRIES = 3
-    FEAT_MSG = "feat({phase}): step {num} — {name}"
-    CHORE_MSG = "chore({phase}): step {num} output"
     TZ = timezone(timedelta(hours=9))
 
-    def __init__(self, phase_dir_name: str, *, auto_push: bool = False):
+    # ship type map: 이슈 제목 prefix / 라벨 / 커밋·브랜치 prefix를 통일
+    TITLE_PREFIX = {
+        "feat": "[Feature]", "fix": "[Fix]", "docs": "[Docs]",
+        "chore": "[Chore]", "refactor": "[Refactor]", "test": "[Test]",
+    }
+    LABEL = {
+        "feat": "feat", "fix": "fix", "docs": "documentation",
+        "chore": "chore", "refactor": "refactor", "test": "test",
+    }
+    COMMIT_TEMPLATE = "{typ}(#{issue}/{scope}): {summary}"
+
+    def __init__(self, phase_dir_name: str):
         self._root = str(ROOT)
         self._phases_dir = ROOT / "phases"
         self._phase_dir = self._phases_dir / phase_dir_name
         self._phase_dir_name = phase_dir_name
         self._top_index_file = self._phases_dir / "index.json"
-        self._auto_push = auto_push
 
         if not self._phase_dir.is_dir():
             print(f"ERROR: {self._phase_dir} not found")
@@ -83,7 +99,7 @@ class StepExecutor:
     def run(self):
         self._print_header()
         self._check_blockers()
-        self._checkout_branch()
+        self._check_prereqs()
         guardrails = self._load_guardrails()
         self._ensure_created_at()
         self._execute_all_steps(guardrails)
@@ -104,57 +120,174 @@ class StepExecutor:
     def _write_json(p: Path, data: dict):
         p.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    # --- git ---
+    # --- git / gh ---
 
     def _run_git(self, *args) -> subprocess.CompletedProcess:
-        cmd = ["git"] + list(args)
-        return subprocess.run(cmd, cwd=self._root, capture_output=True, text=True)
+        return subprocess.run(["git"] + list(args), cwd=self._root, capture_output=True, text=True)
 
-    def _checkout_branch(self):
-        branch = f"feat-{self._phase_name}"
+    def _run_gh(self, *args) -> subprocess.CompletedProcess:
+        return subprocess.run(["gh"] + list(args), cwd=self._root, capture_output=True, text=True)
 
-        r = self._run_git("rev-parse", "--abbrev-ref", "HEAD")
-        if r.returncode != 0:
-            print(f"  ERROR: git을 사용할 수 없거나 git repo가 아닙니다.")
-            print(f"  {r.stderr.strip()}")
+    def _check_prereqs(self):
+        """git repo + gh 인증 확인."""
+        if self._run_git("rev-parse", "--is-inside-work-tree").returncode != 0:
+            print("  ERROR: git repo가 아닙니다.")
+            sys.exit(1)
+        if self._run_gh("auth", "status").returncode != 0:
+            print("  ERROR: gh 인증이 필요합니다. `gh auth login` 후 다시 시도하세요.")
             sys.exit(1)
 
-        if r.stdout.strip() == branch:
-            return
-
-        r = self._run_git("rev-parse", "--verify", branch)
-        r = self._run_git("checkout", branch) if r.returncode == 0 else self._run_git("checkout", "-b", branch)
-
+    def _sync_main(self):
+        """main으로 전환하고 원격을 pull."""
+        r = self._run_git("checkout", MAIN_BRANCH)
         if r.returncode != 0:
-            print(f"  ERROR: 브랜치 '{branch}' checkout 실패.")
-            print(f"  {r.stderr.strip()}")
-            print(f"  Hint: 변경사항을 stash하거나 commit한 후 다시 시도하세요.")
-            sys.exit(1)
+            print(f"  WARN: main checkout 실패: {r.stderr.strip()}")
+        r = self._run_git("pull", "origin", MAIN_BRANCH)
+        if r.returncode != 0:
+            print(f"  WARN: main pull 실패: {r.stderr.strip()}")
 
+    def _meta(self, step: dict):
+        typ = step.get("type", "feat")
+        scope = step.get("scope", step["name"])
+        slug = step["name"]
+        return typ, scope, slug
+
+    def _ensure_label(self, label: str):
+        # 이미 있으면 실패하지만 무시(멱등).
+        self._run_gh("label", "create", label)
+
+    def _gh_issue_create(self, step: dict) -> Optional[int]:
+        """이슈를 생성하고 번호를 반환. 이미 기록된 issue_number가 있으면 재사용."""
+        existing = self._read_step_field(step["step"], "issue_number")
+        if existing:
+            return int(existing)
+
+        typ, scope, slug = self._meta(step)
+        label = self.LABEL.get(typ, "feat")
+        self._ensure_label(label)
+
+        title = f"{self.TITLE_PREFIX.get(typ, '[Feature]')} {self._phase_name} step {step['step']} — {slug}"
+        body = (
+            f"## Summary\n\n"
+            f"{self._phase_name} step {step['step']} ({slug}) 자동 실행.\n\n"
+            f"## Acceptance criteria\n\n"
+            f"- [ ] `npm run build` 통과\n"
+            f"- [ ] `phases/{self._phase_dir_name}/step{step['step']}.md`의 검증 절차 충족\n\n"
+            f"## Additional context\n\n"
+            f"Harness `execute.py` 무인 실행. 상세는 step 파일 참조.\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+            f.write(body)
+            body_path = f.name
+
+        r = self._run_gh("issue", "create", "--title", title,
+                         "--body-file", body_path, "--assignee", "@me", "--label", label)
+        if r.returncode != 0:
+            print(f"  ERROR: 이슈 생성 실패: {r.stderr.strip()}")
+            return None
+        num = self._parse_number(r.stdout)
+        if num:
+            print(f"  Issue: #{num} — {title}")
+            self._set_step_fields(step["step"], issue_number=num)
+        return num
+
+    def _create_branch(self, branch: str):
+        """main 기준으로 브랜치 생성(또는 기존 브랜치 checkout)."""
+        exists = self._run_git("rev-parse", "--verify", branch).returncode == 0
+        r = self._run_git("checkout", branch) if exists else self._run_git("checkout", "-b", branch)
+        if r.returncode != 0:
+            print(f"  ERROR: 브랜치 '{branch}' checkout 실패: {r.stderr.strip()}")
+            sys.exit(1)
         print(f"  Branch: {branch}")
 
-    def _commit_step(self, step_num: int, step_name: str):
-        output_rel = f"phases/{self._phase_dir_name}/step{step_num}-output.json"
-        index_rel = f"phases/{self._phase_dir_name}/index.json"
+    def _commit_ship(self, step: dict, issue: int) -> bool:
+        """코드 변경을 <type>(#N/scope): summary 로 커밋. 변경이 없으면 False."""
+        typ, scope, _ = self._meta(step)
+        summary = self._read_step_field(step["step"], "summary") or step["name"]
 
         self._run_git("add", "-A")
-        self._run_git("reset", "HEAD", "--", output_rel)
-        self._run_git("reset", "HEAD", "--", index_rel)
+        if self._run_git("diff", "--cached", "--quiet").returncode == 0:
+            print("  WARN: 커밋할 코드 변경이 없습니다.")
+            return False
 
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            msg = self.FEAT_MSG.format(phase=self._phase_name, num=step_num, name=step_name)
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode == 0:
-                print(f"  Commit: {msg}")
-            else:
-                print(f"  WARN: 코드 커밋 실패: {r.stderr.strip()}")
+        msg = self.COMMIT_TEMPLATE.format(typ=typ, issue=issue, scope=scope, summary=summary)
+        r = self._run_git("commit", "-m", msg)
+        if r.returncode != 0:
+            print(f"  ERROR: 커밋 실패: {r.stderr.strip()}")
+            sys.exit(1)
+        print(f"  Commit: {msg}")
+        return True
 
-        self._run_git("add", "-A")
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            msg = self.CHORE_MSG.format(phase=self._phase_name, num=step_num)
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode != 0:
-                print(f"  WARN: housekeeping 커밋 실패: {r.stderr.strip()}")
+    def _gh_pr_and_merge(self, step: dict, issue: int, branch: str):
+        """push → PR 생성 → merge → main pull → 로컬 브랜치 정리."""
+        typ, scope, slug = self._meta(step)
+        label = self.LABEL.get(typ, "feat")
+        summary = self._read_step_field(step["step"], "summary") or slug
+
+        r = self._run_git("push", "-u", "origin", branch)
+        if r.returncode != 0:
+            print(f"  ERROR: push 실패: {r.stderr.strip()}")
+            sys.exit(1)
+
+        title = f"{typ}(#{issue}): {summary}"
+        body = (
+            f"## Summary\n\n{summary}\n\n"
+            f"## Related issue\n\nCloses #{issue}\n\n"
+            f"## Changes\n\n- {self._phase_name} step {step['step']} ({slug}) 산출물\n\n"
+            f"## Verification\n\n- `npm run build` 통과\n\n"
+            f"## Checklist\n\n"
+            f"- [x] 관련 이슈의 완료 조건을 충족했습니다.\n"
+            f"- [x] PR과 관련 없는 변경사항을 포함하지 않았습니다.\n"
+            f"- [x] 필요한 테스트와 문서를 업데이트했습니다.\n"
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
+            f.write(body)
+            body_path = f.name
+
+        r = self._run_gh("pr", "create", "--title", title, "--body-file", body_path,
+                         "--assignee", "@me", "--label", label, "--base", MAIN_BRANCH, "--head", branch)
+        if r.returncode != 0:
+            print(f"  ERROR: PR 생성 실패: {r.stderr.strip()}")
+            sys.exit(1)
+        pr = self._parse_number(r.stdout)
+        print(f"  PR: #{pr} — {title}")
+        if pr:
+            self._set_step_fields(step["step"], pr_number=pr)
+
+        r = self._run_gh("pr", "merge", str(pr), "--merge", "--delete-branch")
+        if r.returncode != 0:
+            print(f"  ERROR: 머지 실패: {r.stderr.strip()}")
+            sys.exit(1)
+        print(f"  Merged: #{pr} (merge commit)")
+
+        self._sync_main()
+        # 로컬 브랜치가 남아있으면 정리
+        self._run_git("branch", "-D", branch)
+
+    @staticmethod
+    def _parse_number(gh_stdout: str) -> Optional[int]:
+        """gh issue/pr create 출력(URL)에서 끝 번호를 추출."""
+        text = (gh_stdout or "").strip()
+        if not text:
+            return None
+        tail = text.splitlines()[-1].rstrip("/").split("/")[-1]
+        return int(tail) if tail.isdigit() else None
+
+    # --- step 필드 헬퍼 ---
+
+    def _read_step_field(self, step_num: int, key: str):
+        index = self._read_json(self._index_file)
+        for s in index["steps"]:
+            if s["step"] == step_num:
+                return s.get(key)
+        return None
+
+    def _set_step_fields(self, step_num: int, **fields):
+        index = self._read_json(self._index_file)
+        for s in index["steps"]:
+            if s["step"] == step_num:
+                s.update(fields)
+        self._write_json(self._index_file, index)
 
     # --- top-level index ---
 
@@ -198,9 +331,6 @@ class StepExecutor:
 
     def _build_preamble(self, guardrails: str, step_context: str,
                         prev_error: Optional[str] = None) -> str:
-        commit_example = self.FEAT_MSG.format(
-            phase=self._phase_name, num="N", name="<step-name>"
-        )
         retry_section = ""
         if prev_error:
             retry_section = (
@@ -217,11 +347,11 @@ class StepExecutor:
             f"3. 기존 테스트를 깨뜨리지 마라.\n"
             f"4. AC(Acceptance Criteria) 검증을 직접 실행하라.\n"
             f"5. /phases/{self._phase_dir_name}/index.json의 해당 step status를 업데이트하라:\n"
-            f"   - AC 통과 → \"completed\" + \"summary\" 필드에 이 step의 산출물을 한 줄로 요약\n"
+            f"   - AC 통과 → \"completed\" + \"summary\"(산출물을 한 줄로 요약; 이 문구가 커밋 메시지에 사용된다)\n"
             f"   - {self.MAX_RETRIES}회 수정 시도 후에도 실패 → \"error\" + \"error_message\" 기록\n"
             f"   - 사용자 개입이 필요한 경우 (API 키, 인증, 수동 설정 등) → \"blocked\" + \"blocked_reason\" 기록 후 즉시 중단\n"
-            f"6. 모든 변경사항을 커밋하라:\n"
-            f"   {commit_example}\n\n---\n\n"
+            f"6. **커밋·푸시·PR·머지를 하지 마라. 모든 git·gh 작업은 실행기(execute.py)가 처리한다.**\n"
+            f"   너는 코드 변경과 index.json 갱신만 수행하라.\n\n---\n\n"
         )
 
     # --- Claude 호출 ---
@@ -260,10 +390,9 @@ class StepExecutor:
 
     def _print_header(self):
         print(f"\n{'='*60}")
-        print(f"  Harness Step Executor")
+        print(f"  Harness Step Executor — ship 워크플로우")
         print(f"  Phase: {self._phase_name} | Steps: {self._total}")
-        if self._auto_push:
-            print(f"  Auto-push: enabled")
+        print(f"  각 step: issue → branch → commit → PR → merge (무인)")
         print(f"{'='*60}")
 
     def _check_blockers(self):
@@ -290,12 +419,24 @@ class StepExecutor:
 
     # --- 실행 루프 ---
 
-    def _execute_single_step(self, step: dict, guardrails: str) -> bool:
-        """단일 step 실행 (재시도 포함). 완료되면 True, 실패/차단이면 False."""
+    def _ship_step(self, step: dict, guardrails: str) -> bool:
+        """단일 step을 ship 워크플로우로 실행(재시도 포함). 완료 시 True."""
         step_num, step_name = step["step"], step["name"]
         done = sum(1 for s in self._read_json(self._index_file)["steps"] if s["status"] == "completed")
-        prev_error = None
 
+        # 1. main 최신화 → 2. 이슈 → 3. 브랜치
+        self._sync_main()
+        issue = self._gh_issue_create(step)
+        if issue is None:
+            self._mark_error(step_num, "이슈 생성 실패")
+            self._update_top_index("error")
+            sys.exit(1)
+        typ, _, slug = self._meta(step)
+        branch = f"{typ}/#{issue}-{slug}"
+        self._create_branch(branch)
+
+        # 4. Claude 코드 작업 (재시도)
+        prev_error = None
         for attempt in range(1, self.MAX_RETRIES + 1):
             index = self._read_json(self._index_file)
             step_context = self._build_step_context(index)
@@ -311,106 +452,80 @@ class StepExecutor:
 
             index = self._read_json(self._index_file)
             status = next((s.get("status", "pending") for s in index["steps"] if s["step"] == step_num), "pending")
-            ts = self._stamp()
 
             if status == "completed":
-                for s in index["steps"]:
-                    if s["step"] == step_num:
-                        s["completed_at"] = ts
-                self._write_json(self._index_file, index)
-                self._commit_step(step_num, step_name)
-                print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
+                self._set_step_fields(step_num, completed_at=self._stamp())
+                # 5~8. commit → push → PR → merge → main pull
+                self._commit_ship(step, issue)
+                self._gh_pr_and_merge(step, issue, branch)
+                print(f"  ✓ Step {step_num}: {step_name} shipped [{elapsed}s]")
                 return True
 
             if status == "blocked":
-                for s in index["steps"]:
-                    if s["step"] == step_num:
-                        s["blocked_at"] = ts
-                self._write_json(self._index_file, index)
-                reason = next((s.get("blocked_reason", "") for s in index["steps"] if s["step"] == step_num), "")
+                self._set_step_fields(step_num, blocked_at=self._stamp())
+                reason = self._read_step_field(step_num, "blocked_reason") or ""
                 print(f"  ⏸ Step {step_num}: {step_name} blocked [{elapsed}s]")
                 print(f"    Reason: {reason}")
                 self._update_top_index("blocked")
                 sys.exit(2)
 
-            err_msg = next(
-                (s.get("error_message", "Step did not update status") for s in index["steps"] if s["step"] == step_num),
-                "Step did not update status",
-            )
+            err_msg = self._read_step_field(step_num, "error_message") or "Step did not update status"
 
             if attempt < self.MAX_RETRIES:
+                self._set_step_fields(step_num, status="pending")
+                index = self._read_json(self._index_file)
                 for s in index["steps"]:
                     if s["step"] == step_num:
-                        s["status"] = "pending"
                         s.pop("error_message", None)
                 self._write_json(self._index_file, index)
                 prev_error = err_msg
                 print(f"  ↻ Step {step_num}: retry {attempt}/{self.MAX_RETRIES} — {err_msg}")
             else:
-                for s in index["steps"]:
-                    if s["step"] == step_num:
-                        s["status"] = "error"
-                        s["error_message"] = f"[{self.MAX_RETRIES}회 시도 후 실패] {err_msg}"
-                        s["failed_at"] = ts
-                self._write_json(self._index_file, index)
-                self._commit_step(step_num, step_name)
+                self._mark_error(step_num, f"[{self.MAX_RETRIES}회 시도 후 실패] {err_msg}")
                 print(f"  ✗ Step {step_num}: {step_name} failed after {self.MAX_RETRIES} attempts [{elapsed}s]")
                 print(f"    Error: {err_msg}")
+                print(f"    브랜치 '{branch}'와 이슈 #{issue}는 남겨둡니다. 수정 후 재실행하세요.")
                 self._update_top_index("error")
                 sys.exit(1)
 
         return False  # unreachable
+
+    def _mark_error(self, step_num: int, message: str):
+        self._set_step_fields(step_num, status="error", error_message=message, failed_at=self._stamp())
 
     def _execute_all_steps(self, guardrails: str):
         while True:
             index = self._read_json(self._index_file)
             pending = next((s for s in index["steps"] if s["status"] == "pending"), None)
             if pending is None:
-                print("\n  All steps completed!")
+                print("\n  All steps shipped!")
                 return
 
             step_num = pending["step"]
-            for s in index["steps"]:
-                if s["step"] == step_num and "started_at" not in s:
-                    s["started_at"] = self._stamp()
-                    self._write_json(self._index_file, index)
-                    break
+            if not self._read_step_field(step_num, "started_at"):
+                self._set_step_fields(step_num, started_at=self._stamp())
 
-            self._execute_single_step(pending, guardrails)
+            self._ship_step(pending, guardrails)
 
     def _finalize(self):
         index = self._read_json(self._index_file)
         index["completed_at"] = self._stamp()
         self._write_json(self._index_file, index)
         self._update_top_index("completed")
-
-        self._run_git("add", "-A")
-        if self._run_git("diff", "--cached", "--quiet").returncode != 0:
-            msg = f"chore({self._phase_name}): mark phase completed"
-            r = self._run_git("commit", "-m", msg)
-            if r.returncode == 0:
-                print(f"  ✓ {msg}")
-
-        if self._auto_push:
-            branch = f"feat-{self._phase_name}"
-            r = self._run_git("push", "-u", "origin", branch)
-            if r.returncode != 0:
-                print(f"\n  ERROR: git push 실패: {r.stderr.strip()}")
-                sys.exit(1)
-            print(f"  ✓ Pushed to origin/{branch}")
+        self._sync_main()
 
         print(f"\n{'='*60}")
-        print(f"  Phase '{self._phase_name}' completed!")
+        print(f"  Phase '{self._phase_name}' completed! 모든 step이 main에 머지되었습니다.")
+        print(f"  정리: PR 머지 완료 → phases/{self._phase_dir_name}/ 삭제 권장 (CLAUDE.md 규칙)")
         print(f"{'='*60}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Harness Step Executor")
-    parser.add_argument("phase_dir", help="Phase directory name (e.g. 0-mvp)")
-    parser.add_argument("--push", action="store_true", help="Push branch after completion")
+    parser = argparse.ArgumentParser(description="Harness Step Executor (ship 워크플로우)")
+    parser.add_argument("phase_dir", help="Phase directory name (e.g. mvp-redesign)")
     args = parser.parse_args()
 
-    StepExecutor(args.phase_dir, auto_push=args.push).run()
+    StepExecutor(args.phase_dir).run()
 
 
 if __name__ == "__main__":

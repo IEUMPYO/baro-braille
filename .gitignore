@@ -7,3 +7,4 @@ out
 phases/
 docs/
 CLAUDE.md
+__pycache__/
