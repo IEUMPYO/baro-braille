@@ -328,6 +328,130 @@ p.page-sub {
   gap: 10px;
 }
 
+/* ── 화면 2 · 교열 ────────────────────────────────── */
+.edit-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.prob-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prob-nav .btn.small {
+  padding: 4px 9px;
+}
+.prob-nav .pos {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.prob-nav .pos b {
+  color: var(--sky);
+}
+.edit-topbar .doc {
+  color: var(--faint);
+  font-size: 13px;
+}
+.edit-topbar .spacer {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.edit-grid {
+  display: grid;
+  grid-template-columns: minmax(380px, 1fr) minmax(380px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .edit-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.edit-grid .panel.sticky {
+  position: sticky;
+  top: 16px;
+}
+.pdf-page {
+  position: relative;
+  overflow: hidden;
+  height: min(calc(100vh - 210px), 820px);
+  min-height: 420px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.pdf-zoom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  transform-origin: 0 0;
+  transition: transform 0.3s ease;
+}
+.pdf-img {
+  display: block;
+  width: 100%;
+}
+.orig-box {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 4px;
+}
+.orig-hl {
+  outline: 1.5px solid var(--sky);
+  outline-offset: 5px;
+  border-radius: 2px;
+}
+.proof-line {
+  padding: 7px 10px;
+  margin: 2px 0;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-family: var(--serif);
+  font-size: 16px;
+  line-height: 1.7;
+}
+.proof-line:hover {
+  border-color: var(--line-strong);
+}
+.proof-line:focus {
+  outline: none;
+  border-color: var(--sky);
+}
+.prob-divider {
+  margin: 20px 4px 8px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sub);
+}
+.prob-divider:first-child {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: none;
+}
+.block-label {
+  margin: 14px 4px 6px;
+}
+.block-label:first-child {
+  margin-top: 2px;
+}
+.math {
+  display: inline-block;
+  padding: 0 7px;
+  margin: 0 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.math:hover {
+  border-color: var(--sky);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
