@@ -13,6 +13,7 @@ import { useWorkflow } from "@/lib/store";
 import { mockDoc } from "@/lib/mockData";
 import { backTranslate } from "@/lib/services";
 import { DOT_BIT, bitsFromCell, cellFromBits, toggleDot } from "@/lib/utils";
+import LatexEditor from "@/features/proofread/LatexEditor";
 
 const LABEL = {
   problem: "문제",
@@ -33,7 +34,8 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
-// [sc]LaTeX[/sc] 인라인 마킹을 텍스트 + KaTeX 수식 블록 HTML로 렌더(읽기 전용).
+// [sc]LaTeX[/sc] 인라인 마킹을 텍스트 + KaTeX 수식 블록 HTML로 렌더.
+// 수식은 data-latex를 보유한 .math span으로 감싸 클릭 시 편집기가 원본 LaTeX를 읽게 한다.
 function buildSrcHtml(raw) {
   const re = /\[sc\]([\s\S]*?)\[\/sc\]/g;
   let out = "";
@@ -41,11 +43,12 @@ function buildSrcHtml(raw) {
   let m;
   while ((m = re.exec(raw)) !== null) {
     out += escapeHtml(raw.slice(last, m.index));
-    const rendered = katex.renderToString(m[1], {
+    const latex = m[1];
+    const rendered = katex.renderToString(latex, {
       throwOnError: false,
       displayMode: false,
     });
-    out += `<span class="math">${rendered}</span>`;
+    out += `<span class="math" data-latex="${escapeHtml(latex)}">${rendered}</span>`;
     last = re.lastIndex;
   }
   out += escapeHtml(raw.slice(last));
@@ -93,6 +96,7 @@ export default function BrailleFlow() {
   const [modified, setModified] = useState(false);
   const [backText, setBackText] = useState("");
   const [backLoading, setBackLoading] = useState(false);
+  const [mathCtx, setMathCtx] = useState(null); // 편집 중 수식 { el, origLatex }
 
   const brailleLineRef = useRef(null);
 
@@ -252,6 +256,29 @@ export default function BrailleFlow() {
     setBrailleLine(problem.no, selLine, { cells, back, modified: false });
   }
 
+  // 수식 클릭 → 편집기. 목업(#screen-3)과 동일하게 화면(.math DOM)만 즉석 갱신하고
+  // store 저장·재점역은 하지 않는다(문제 전환 시 변경은 손실됨).
+  function liveMath(latex) {
+    const el = mathCtx?.el;
+    if (!el) return;
+    katex.render(latex, el, { throwOnError: false, displayMode: false });
+    el.dataset.latex = latex;
+  }
+
+  function applyMath(latex) {
+    liveMath(latex);
+    setMathCtx(null);
+  }
+
+  function cancelMath() {
+    const { el, origLatex } = mathCtx;
+    if (el) {
+      katex.render(origLatex, el, { throwOnError: false, displayMode: false });
+      el.dataset.latex = origLatex;
+    }
+    setMathCtx(null);
+  }
+
   const lines = flattenLines(problem.blocks);
 
   return (
@@ -308,7 +335,12 @@ export default function BrailleFlow() {
                   type="button"
                   className={`src-line${selLine === line.lineNo ? " selected" : ""}`}
                   onClick={(e) => {
-                    if (e.target.closest?.(".math")) return; // 수식 클릭은 선택 아님
+                    const el = e.target.closest?.(".math");
+                    if (el) {
+                      // 수식 클릭은 줄 선택이 아니라 편집기 열기
+                      setMathCtx({ el, origLatex: el.dataset.latex });
+                      return;
+                    }
                     loadLine(line.lineNo);
                   }}
                   dangerouslySetInnerHTML={{ __html: buildSrcHtml(line.html) }}
@@ -421,6 +453,15 @@ export default function BrailleFlow() {
           </div>
         </div>
       </div>
+
+      {mathCtx && (
+        <LatexEditor
+          initialLatex={mathCtx.origLatex}
+          onLive={liveMath}
+          onApply={applyMath}
+          onCancel={cancelMath}
+        />
+      )}
     </div>
   );
 }
