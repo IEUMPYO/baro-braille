@@ -106,11 +106,6 @@ header.app {
   color: var(--ink);
   text-decoration: none;
 }
-.logo .dots {
-  font-family: var(--braille);
-  font-size: 15px;
-  color: var(--sky);
-}
 .steps {
   display: flex;
   align-items: center;
