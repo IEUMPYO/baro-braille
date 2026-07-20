@@ -73,19 +73,19 @@
 
 상태 전이와 자동 기록 필드:
 
-| 전이 | 기록되는 필드 | 기록 주체 |
-|------|-------------|----------|
-| → `completed` | `completed_at`, `summary` | Claude 세션 (summary), execute.py (timestamp) |
-| → `error` | `failed_at`, `error_message` | Claude 세션 (message), execute.py (timestamp) |
-| → `blocked` | `blocked_at`, `blocked_reason` | Claude 세션 (reason), execute.py (timestamp) |
+| 전이          | 기록되는 필드                      | 기록 주체                                           |
+| ------------- | ---------------------------------- | --------------------------------------------------- |
+| → `completed` | `completed_at`, `title`, `summary` | Claude 세션 (title·summary), execute.py (timestamp) |
+| → `error`     | `failed_at`, `error_message`       | Claude 세션 (message), execute.py (timestamp)       |
+| → `blocked`   | `blocked_at`, `blocked_reason`     | Claude 세션 (reason), execute.py (timestamp)        |
 
-`summary`는 step 완료 시 산출물을 한 줄로 요약한 것으로, execute.py가 다음 step 프롬프트에 컨텍스트로 누적 전달한다. 따라서 다음 step에 유용한 정보(생성된 파일, 핵심 결정 등)를 담아야 한다.
+`title`은 ≤60자 짧은 한 줄 제목으로, execute.py가 커밋 subject·PR 제목에 사용한다(없으면 step `name`으로 폴백). `summary`는 산출물 **상세 요약**으로 커밋 body·PR 본문에 쓰이고, execute.py가 다음 step 프롬프트에 컨텍스트로 누적 전달하므로 다음 step에 유용한 정보(생성된 파일, 핵심 결정 등)를 담아야 한다. 상세 내용을 `title`(제목)에 몰아넣지 말 것 — 제목이 문단처럼 길어진다.
 
 `created_at`은 execute.py가 최초 실행 시 task 레벨에 한 번만 기록한다. step 레벨의 `started_at`도 execute.py가 각 step 시작 시 자동 기록한다. 생성 시 넣지 않는다.
 
 #### D-3. `phases/{task-name}/step{N}.md` (각 step마다 1개)
 
-```markdown
+````markdown
 # Step {N}: {이름}
 
 ## 읽어야 할 파일
@@ -110,6 +110,7 @@
 npm run build   # 컴파일 에러 없음
 npm test        # 테스트 통과
 ```
+````
 
 ## 검증 절차
 
@@ -119,7 +120,7 @@ npm test        # 테스트 통과
    - ADR 기술 스택을 벗어나지 않았는가?
    - CLAUDE.md CRITICAL 규칙을 위반하지 않았는가?
 3. 결과에 따라 `phases/{task-name}/index.json`의 해당 step을 업데이트한다:
-   - 성공 → `"status": "completed"`, `"summary": "산출물 한 줄 요약"`
+   - 성공 → `"status": "completed"`, `"title": "짧은 한 줄 제목(≤60자, 커밋·PR 제목용)"`, `"summary": "산출물 상세 요약(본문·다음 step 컨텍스트용)"`
    - 수정 3회 시도 후에도 실패 → `"status": "error"`, `"error_message": "구체적 에러 내용"`
    - 사용자 개입 필요 (API 키, 외부 인증, 수동 설정 등) → `"status": "blocked"`, `"blocked_reason": "구체적 사유"` 후 즉시 중단
 
@@ -127,14 +128,15 @@ npm test        # 테스트 통과
 
 - {이 step에서 하지 말아야 할 것. "X를 하지 마라. 이유: Y" 형식}
 - 기존 테스트를 깨뜨리지 마라
-```
+
+````
 
 ### E. 실행
 
 ```bash
 python3 scripts/execute.py {task-name}        # 순차 실행
 python3 scripts/execute.py {task-name} --push  # 실행 후 push
-```
+````
 
 execute.py가 자동으로 처리하는 것:
 

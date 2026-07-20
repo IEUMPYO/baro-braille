@@ -142,7 +142,7 @@ class TestTypeMap:
         assert ex.StepExecutor.LABEL["docs"] == "documentation"
 
     def test_commit_template(self):
-        msg = ex.StepExecutor.COMMIT_TEMPLATE.format(typ="feat", issue=7, scope="ui", summary="done")
+        msg = ex.StepExecutor.COMMIT_TEMPLATE.format(typ="feat", issue=7, scope="ui", title="done")
         assert msg == "feat(#7/ui): done"
 
 
@@ -354,8 +354,8 @@ class TestCommitShip:
         assert len(commit_calls) == 1
         assert commit_calls[0][2] == "feat(#42/ui): ui"
 
-    def test_uses_summary_when_present(self, executor):
-        executor._set_step_fields(2, summary="업로드 화면 구현")
+    def test_uses_title_when_present(self, executor):
+        executor._set_step_fields(2, title="업로드 화면", summary="업로드 화면 상세 구현 요약")
         calls = []
         def fake_git(*args):
             calls.append(args)
@@ -365,8 +365,26 @@ class TestCommitShip:
         executor._run_git = fake_git
 
         executor._commit_ship({"step": 2, "name": "ui", "type": "feat", "scope": "ui"}, 42)
-        commit_calls = [c for c in calls if c[0] == "commit"]
-        assert commit_calls[0][2] == "feat(#42/ui): 업로드 화면 구현"
+        commit = next(c for c in calls if c[0] == "commit")
+        # subject는 짧은 title, 상세 summary는 두 번째 -m(body)로
+        assert commit[2] == "feat(#42/ui): 업로드 화면"
+        assert list(commit[3:]) == ["-m", "업로드 화면 상세 구현 요약"]
+
+    def test_summary_goes_to_body_and_subject_falls_back_to_name(self, executor):
+        # title이 없으면 subject는 name(slug)으로 폴백하고, summary는 body에만 들어간다
+        executor._set_step_fields(2, summary="업로드 화면 상세 구현 요약")
+        calls = []
+        def fake_git(*args):
+            calls.append(args)
+            if args[:2] == ("diff", "--cached"):
+                return MagicMock(returncode=1)
+            return MagicMock(returncode=0, stdout="", stderr="")
+        executor._run_git = fake_git
+
+        executor._commit_ship({"step": 2, "name": "ui", "type": "feat", "scope": "ui"}, 42)
+        commit = next(c for c in calls if c[0] == "commit")
+        assert commit[2] == "feat(#42/ui): ui"
+        assert list(commit[3:]) == ["-m", "업로드 화면 상세 구현 요약"]
 
     def test_no_change_returns_false(self, executor):
         def fake_git(*args):
