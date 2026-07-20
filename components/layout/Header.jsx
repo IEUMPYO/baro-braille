@@ -17,9 +17,6 @@ export default function Header() {
   return (
     <header className="app">
       <Link className="logo" href="/" aria-label="바로점자 홈으로">
-        <span className="dots" aria-hidden="true">
-          ⠃⠁⠗⠕
-        </span>{" "}
         바로점자
       </Link>
       <nav className="steps" aria-label="진행 단계">
