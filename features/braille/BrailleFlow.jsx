@@ -80,6 +80,33 @@ function flattenLines(blocks) {
   return out;
 }
 
+// 좌측 원본 줄. 교열 ProofLine과 동일하게 innerHTML을 ref+useEffect로 명령형 주입한다.
+// 이렇게 해야 편집기 열기(부모 리렌더) 때 innerHTML이 다시 심기지 않아, 클릭 시 잡아둔
+// .math DOM(el)이 살아있고, html이 바뀔 때만(적용 후) 재주입되어 편집 결과가 반영된다.
+function SrcLine({ html, selected, onSelect, onMathClick }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.innerHTML = buildSrcHtml(html);
+  }, [html]);
+
+  return (
+    <button
+      type="button"
+      ref={ref}
+      className={`src-line${selected ? " selected" : ""}`}
+      onClick={(e) => {
+        const el = e.target.closest?.(".math");
+        if (el) {
+          onMathClick(el, el.dataset.latex); // 수식 클릭은 줄 선택이 아니라 편집기 열기
+          return;
+        }
+        onSelect();
+      }}
+    />
+  );
+}
+
 export default function BrailleFlow() {
   const router = useRouter();
   const { state, setBrailleLine } = useWorkflow();
@@ -356,23 +383,17 @@ export default function BrailleFlow() {
                       <span className="chip">{line.label}</span>
                     </div>
                   )}
-                  <button
-                    type="button"
-                    className={`src-line${selLine === line.lineNo ? " selected" : ""}`}
-                    onClick={(e) => {
-                      const el = e.target.closest?.(".math");
-                      if (el) {
-                        // 수식 클릭은 줄 선택이 아니라 편집기 열기
-                        setMathCtx({
-                          el,
-                          origLatex: el.dataset.latex,
-                          lineNo: line.lineNo,
-                        });
-                        return;
-                      }
-                      loadLine(line.lineNo);
-                    }}
-                    dangerouslySetInnerHTML={{ __html: buildSrcHtml(html) }}
+                  <SrcLine
+                    html={html}
+                    selected={selLine === line.lineNo}
+                    onSelect={() => loadLine(line.lineNo)}
+                    onMathClick={(el, latex) =>
+                      setMathCtx({
+                        el,
+                        origLatex: latex,
+                        lineNo: line.lineNo,
+                      })
+                    }
                   />
                 </Fragment>
               );
