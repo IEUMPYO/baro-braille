@@ -73,7 +73,7 @@ class StepExecutor:
         "feat": "feat", "fix": "fix", "docs": "documentation",
         "chore": "chore", "refactor": "refactor", "test": "test",
     }
-    COMMIT_TEMPLATE = "{typ}(#{issue}/{scope}): {summary}"
+    COMMIT_TEMPLATE = "{typ}(#{issue}/{scope}): {title}"
 
     def __init__(self, phase_dir_name: str):
         self._root = str(ROOT)
@@ -152,6 +152,11 @@ class StepExecutor:
         slug = step["name"]
         return typ, scope, slug
 
+    def _step_title(self, step: dict) -> str:
+        """커밋 subject·PR 제목에 쓸 짧은 한 줄 제목. 없으면 step name(slug)으로 폴백해
+        장문 summary가 제목에 노출되는 것을 막는다."""
+        return self._read_step_field(step["step"], "title") or step["name"]
+
     def _ensure_label(self, label: str):
         # 이미 있으면 실패하지만 무시(멱등).
         self._run_gh("label", "create", label)
@@ -201,35 +206,40 @@ class StepExecutor:
         print(f"  Branch: {branch}")
 
     def _commit_ship(self, step: dict, issue: int) -> bool:
-        """코드 변경을 <type>(#N/scope): summary 로 커밋. 변경이 없으면 False."""
+        """코드 변경을 커밋. subject는 짧은 title, body는 상세 summary. 변경이 없으면 False."""
         typ, scope, _ = self._meta(step)
-        summary = self._read_step_field(step["step"], "summary") or step["name"]
+        title = self._step_title(step)
+        summary = self._read_step_field(step["step"], "summary")
 
         self._run_git("add", "-A")
         if self._run_git("diff", "--cached", "--quiet").returncode == 0:
             print("  WARN: 커밋할 코드 변경이 없습니다.")
             return False
 
-        msg = self.COMMIT_TEMPLATE.format(typ=typ, issue=issue, scope=scope, summary=summary)
-        r = self._run_git("commit", "-m", msg)
+        subject = self.COMMIT_TEMPLATE.format(typ=typ, issue=issue, scope=scope, title=title)
+        commit_args = ["commit", "-m", subject]
+        if summary and summary != title:
+            commit_args += ["-m", summary]  # 상세 요약은 커밋 body로
+        r = self._run_git(*commit_args)
         if r.returncode != 0:
             print(f"  ERROR: 커밋 실패: {r.stderr.strip()}")
             sys.exit(1)
-        print(f"  Commit: {msg}")
+        print(f"  Commit: {subject}")
         return True
 
     def _gh_pr_and_merge(self, step: dict, issue: int, branch: str):
         """push → PR 생성 → merge → main pull → 로컬 브랜치 정리."""
         typ, scope, slug = self._meta(step)
         label = self.LABEL.get(typ, "feat")
-        summary = self._read_step_field(step["step"], "summary") or slug
+        step_title = self._step_title(step)
+        summary = self._read_step_field(step["step"], "summary") or step_title
 
         r = self._run_git("push", "-u", "origin", branch)
         if r.returncode != 0:
             print(f"  ERROR: push 실패: {r.stderr.strip()}")
             sys.exit(1)
 
-        title = f"{typ}(#{issue}): {summary}"
+        title = f"{typ}(#{issue}): {step_title}"
         body = (
             f"## Summary\n\n{summary}\n\n"
             f"## Related issue\n\nCloses #{issue}\n\n"
@@ -347,7 +357,8 @@ class StepExecutor:
             f"3. 기존 테스트를 깨뜨리지 마라.\n"
             f"4. AC(Acceptance Criteria) 검증을 직접 실행하라.\n"
             f"5. /phases/{self._phase_dir_name}/index.json의 해당 step status를 업데이트하라:\n"
-            f"   - AC 통과 → \"completed\" + \"summary\"(산출물을 한 줄로 요약; 이 문구가 커밋 메시지에 사용된다)\n"
+            f"   - AC 통과 → \"completed\" + \"title\"(≤60자 짧은 한 줄; 커밋 subject·PR 제목에 사용)\n"
+            f"     + \"summary\"(상세 요약; 커밋 body·PR 본문·다음 step 컨텍스트에 사용)\n"
             f"   - {self.MAX_RETRIES}회 수정 시도 후에도 실패 → \"error\" + \"error_message\" 기록\n"
             f"   - 사용자 개입이 필요한 경우 (API 키, 인증, 수동 설정 등) → \"blocked\" + \"blocked_reason\" 기록 후 즉시 중단\n"
             f"6. **커밋·푸시·PR·머지를 하지 마라. 모든 git·gh 작업은 실행기(execute.py)가 처리한다.**\n"
