@@ -494,7 +494,7 @@ export default function BrailleFlow() {
                   disabled={!modified || backLoading}
                   onClick={refreshBack}
                 >
-                  역점역 갱신
+                  역점역 업데이트
                 </button>
                 <span className="back-hint">
                   점자가 수정되어 역점역과 다를 수 있습니다.
