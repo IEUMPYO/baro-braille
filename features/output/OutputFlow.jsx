@@ -52,7 +52,6 @@ export default function OutputFlow() {
       fileName: "수학영역_문제지.brf",
       content: brailleText,
       mime: "text/plain;charset=utf-8",
-      primary: true,
     },
     {
       tag: "BRL",
@@ -60,7 +59,6 @@ export default function OutputFlow() {
       fileName: "수학영역_문제지.brl",
       content: brailleText,
       mime: "text/plain;charset=utf-8",
-      primary: false,
     },
     {
       tag: "PDF",
@@ -68,7 +66,6 @@ export default function OutputFlow() {
       fileName: "수학영역_문제지_대조본.pdf",
       content: pdfDummy,
       mime: "application/pdf",
-      primary: false,
     },
   ];
 
@@ -79,10 +76,7 @@ export default function OutputFlow() {
       </h1>
 
       {cards.map((card) => (
-        <div
-          key={card.tag}
-          className={`dl-card${card.primary ? " primary-format" : ""}`}
-        >
+        <div key={card.tag} className="dl-card">
           <span className="fmt-tag">{card.tag}</span>
           <span className="dl-meta">
             <span className="dl-title">{card.title}</span>

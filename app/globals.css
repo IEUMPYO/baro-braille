@@ -828,9 +828,6 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.dl-card.primary-format {
-  border-color: var(--sky);
-}
 .fmt-tag {
   flex: none;
   width: 52px;
