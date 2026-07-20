@@ -108,10 +108,10 @@ export default function OutputFlow() {
           className="link-plain"
           onClick={() => router.push("/braille")}
         >
-          ← 점역으로 돌아가기
+          ← 이전 단계
         </button>
         <button type="button" className="btn" onClick={() => router.push("/")}>
-          새 문서 변환
+          새 작업 시작하기
         </button>
       </div>
     </div>
