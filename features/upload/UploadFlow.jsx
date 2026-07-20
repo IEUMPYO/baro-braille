@@ -76,7 +76,10 @@ export default function UploadFlow() {
     <div className="upload-wrap">
       <h1 className="page">학습자료 업로드</h1>
       <p className="page-sub">
-        점역할 수능 수학 문제지를 올려주세요. 페이지별·문제별로 자동 분류됩니다.
+        점역이 필요한 학습자료를 올려주세요!
+        <br />
+        바로점자는 한국어와 수식에 특화된 AI 모델로, 수학 문제도 정확하게 점역해
+        드려요!
       </p>
 
       <div
@@ -92,8 +95,8 @@ export default function UploadFlow() {
           addFiles(e.dataTransfer.files);
         }}
       >
-        <div className="big">파일을 끌어다 놓거나 클릭하여 선택</div>
-        <div className="formats">PDF · JPG · PNG, 최대 50MB</div>
+        <div className="big">파일 업로드</div>
+        <div className="formats">지원 형식: PDF, JPG, PNG (최대 50MB)</div>
       </div>
 
       <input
