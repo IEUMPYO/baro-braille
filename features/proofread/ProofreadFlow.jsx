@@ -323,7 +323,6 @@ export default function ProofreadFlow() {
               const blocks = effectiveBlocks(problem);
               return (
                 <Fragment key={problem.no}>
-                  <div className="prob-divider">문제 {problem.no}</div>
                   {flattenBlocks(blocks).map((line) => (
                     <Fragment
                       key={`${problem.no}-${line.bi}-${line.ii ?? "x"}`}

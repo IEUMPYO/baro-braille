@@ -415,19 +415,6 @@ p.page-sub {
   outline: none;
   border-color: var(--sky);
 }
-.prob-divider {
-  margin: 20px 4px 8px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--line);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--sub);
-}
-.prob-divider:first-child {
-  margin-top: 2px;
-  padding-top: 0;
-  border-top: none;
-}
 .block-label {
   margin: 14px 4px 6px;
 }

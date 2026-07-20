@@ -337,18 +337,18 @@ export default function BrailleFlow() {
           <button
             type="button"
             className="btn small"
-            aria-label="이전 문제"
+            aria-label="이전 문항"
             onClick={() => renderProblem(probIdx - 1)}
           >
             ‹
           </button>
           <span className="pos">
-            문제 <b>{problem.no}</b> / {problems.length}
+            문항 <b>{problem.no}</b> / {problems.length}
           </span>
           <button
             type="button"
             className="btn small"
-            aria-label="다음 문제"
+            aria-label="다음 문항"
             onClick={() => renderProblem(probIdx + 1)}
           >
             ›
