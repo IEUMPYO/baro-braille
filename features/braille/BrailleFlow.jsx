@@ -96,7 +96,8 @@ export default function BrailleFlow() {
   const [modified, setModified] = useState(false);
   const [backText, setBackText] = useState("");
   const [backLoading, setBackLoading] = useState(false);
-  const [mathCtx, setMathCtx] = useState(null); // 편집 중 수식 { el, origLatex }
+  const [mathCtx, setMathCtx] = useState(null); // 편집 중 수식 { el, origLatex, lineNo }
+  const [srcOverride, setSrcOverride] = useState({}); // `${no}-${lineNo}` → 편집된 줄 마크업
 
   const brailleLineRef = useRef(null);
 
@@ -256,8 +257,8 @@ export default function BrailleFlow() {
     setBrailleLine(problem.no, selLine, { cells, back, modified: false });
   }
 
-  // 수식 클릭 → 편집기. 목업(#screen-3)과 동일하게 화면(.math DOM)만 즉석 갱신하고
-  // store 저장·재점역은 하지 않는다(문제 전환 시 변경은 손실됨).
+  // 수식 클릭 → 편집기. 편집 중 라이브 미리보기는 .math DOM을 즉석 갱신하고,
+  // 적용 시엔 줄 마크업을 srcOverride에 저장해 리렌더로 반영한다(store·재점역 없음).
   function liveMath(latex) {
     const el = mathCtx?.el;
     if (!el) return;
@@ -265,8 +266,29 @@ export default function BrailleFlow() {
     el.dataset.latex = latex;
   }
 
+  // 렌더된 원본 줄(.math data-latex 보유)을 다시 [sc]LaTeX[/sc] 마크업으로 직렬화.
+  function serializeSrcLine(el) {
+    let out = "";
+    el.childNodes.forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        out += node.textContent;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        out += node.classList.contains("math")
+          ? `[sc]${node.dataset.latex}[/sc]`
+          : node.textContent;
+      }
+    });
+    return out;
+  }
+
   function applyMath(latex) {
-    liveMath(latex);
+    const { el, lineNo } = mathCtx;
+    liveMath(latex); // el.dataset.latex를 최종 값으로 갱신 후 직렬화
+    const lineEl = el?.closest(".src-line");
+    if (lineEl) {
+      const markup = serializeSrcLine(lineEl);
+      setSrcOverride((o) => ({ ...o, [`${problem.no}-${lineNo}`]: markup }));
+    }
     setMathCtx(null);
   }
 
@@ -324,29 +346,37 @@ export default function BrailleFlow() {
         {/* 좌: 원본 줄 리스트 */}
         <div className="panel">
           <div className="panel-body">
-            {lines.map((line) => (
-              <Fragment key={line.lineNo}>
-                {line.label && (
-                  <div className="block-label">
-                    <span className="chip">{line.label}</span>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  className={`src-line${selLine === line.lineNo ? " selected" : ""}`}
-                  onClick={(e) => {
-                    const el = e.target.closest?.(".math");
-                    if (el) {
-                      // 수식 클릭은 줄 선택이 아니라 편집기 열기
-                      setMathCtx({ el, origLatex: el.dataset.latex });
-                      return;
-                    }
-                    loadLine(line.lineNo);
-                  }}
-                  dangerouslySetInnerHTML={{ __html: buildSrcHtml(line.html) }}
-                />
-              </Fragment>
-            ))}
+            {lines.map((line) => {
+              const html =
+                srcOverride[`${problem.no}-${line.lineNo}`] ?? line.html;
+              return (
+                <Fragment key={line.lineNo}>
+                  {line.label && (
+                    <div className="block-label">
+                      <span className="chip">{line.label}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className={`src-line${selLine === line.lineNo ? " selected" : ""}`}
+                    onClick={(e) => {
+                      const el = e.target.closest?.(".math");
+                      if (el) {
+                        // 수식 클릭은 줄 선택이 아니라 편집기 열기
+                        setMathCtx({
+                          el,
+                          origLatex: el.dataset.latex,
+                          lineNo: line.lineNo,
+                        });
+                        return;
+                      }
+                      loadLine(line.lineNo);
+                    }}
+                    dangerouslySetInnerHTML={{ __html: buildSrcHtml(html) }}
+                  />
+                </Fragment>
+              );
+            })}
           </div>
         </div>
 
